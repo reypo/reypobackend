@@ -3,11 +3,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-// Davet/parola sıfırlama linki buraya #access_token=...&refresh_token=... ile
-// düşer (implicit flow — inviteUserByEmail PKCE desteklemiyor). @supabase/ssr'ın
-// browser client'ı flowType'ı "pkce"ye sabitlediği için otomatik URL algılaması
-// (detectSessionInUrl) "Not a valid PKCE flow url" hatasıyla SESSİZCE
-// başarısız olur ve hiçbir session kurulmaz. Bu yüzden hash'i elle okuyup
+// Not: E-postasız modelde (ürün kararı 2026-07-09) bu sayfaya normalde
+// gelinmez; ileride e-posta tabanlı davet/sıfırlama açılırsa diye korunuyor.
+// E-posta linki buraya #access_token=...&refresh_token=... ile düşer (implicit
+// flow). @supabase/ssr browser client'ı flowType'ı "pkce"ye sabitlediği için
+// otomatik URL algılaması sessizce başarısız olur; bu yüzden hash'i elle okuyup
 // setSession() ile devreye alıyoruz — bu yol flowType kontrolüne tabi değil.
 export default function SetPasswordPage() {
   const [status, setStatus] = useState<"loading" | "ready" | "invalid">(

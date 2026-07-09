@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { updateUserRole, updateSystemRole } from "@/lib/actions/users";
 import { DeleteUserButton } from "./delete-user-button";
+import { ResetPasswordButton } from "./reset-password-button";
 import type { SystemRole } from "@/lib/supabase/types";
 
 export type UserRow = {
@@ -71,9 +72,12 @@ export function UserRoleRow({
         </select>
       </td>
       <td className="px-4 py-2">
-        {user.id !== currentUserId && (
-          <DeleteUserButton userId={user.id} email={user.email} />
-        )}
+        <div className="flex flex-col items-start gap-1">
+          <ResetPasswordButton userId={user.id} />
+          {user.id !== currentUserId && (
+            <DeleteUserButton userId={user.id} email={user.email} />
+          )}
+        </div>
       </td>
     </tr>
   );

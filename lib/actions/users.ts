@@ -1,43 +1,83 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { requireAdmin } from "./guard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { SystemRole } from "@/lib/supabase/types";
 
-export type InviteState = { error?: string; success?: string } | undefined;
+export type CreateUserState =
+  | { error?: string; createdEmail?: string; password?: string }
+  | undefined;
 
-export async function inviteUser(
-  _prevState: InviteState,
+// Okunması/iletilmesi kolay geçici şifre: gt-XXXXXX (6 base36 karakter).
+// Kullanıcı ilk girişte Ayarlar > Güvenlik'ten değiştirir.
+function generateTempPassword() {
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `gt-${rand}`;
+}
+
+// E-postasız model (ürün kararı 2026-07-09): admin hesabı doğrudan oluşturur;
+// davet maili gönderilmez. Üretilen geçici şifre admin'e bir kez gösterilir.
+export async function createUser(
+  _prevState: CreateUserState,
   formData: FormData
-): Promise<InviteState> {
+): Promise<CreateUserState> {
   await requireAdmin();
 
   const email = String(formData.get("email") ?? "").trim();
-  if (!email) {
-    return { error: "E-posta gerekli." };
+  const fullName = String(formData.get("full_name") ?? "").trim();
+  const roleId = String(formData.get("role_id") ?? "") || null;
+
+  if (!email || !fullName) {
+    return { error: "Ad Soyad ve e-posta zorunlu." };
   }
 
-  // Supabase'in davet linki, redirectTo Auth ayarlarındaki "Redirect URLs"
-  // izin listesinde olmadığı sürece bunu yok sayıp Site URL'e döner — bu
-  // yüzden hem kod hem Supabase Dashboard tarafı eşleşmeli (bkz. BOOTSTRAP.md).
-  const headersList = await headers();
-  const host = headersList.get("host");
-  const protocol = host?.startsWith("localhost") ? "http" : "https";
-  const redirectTo = `${protocol}://${host}/set-password`;
-
   const adminClient = createAdminClient();
-  const { error } = await adminClient.auth.admin.inviteUserByEmail(email, {
-    redirectTo,
+  const password = generateTempPassword();
+
+  const { data, error } = await adminClient.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true, // e-posta doğrulaması yok; hesap direkt aktif
+    user_metadata: { full_name: fullName },
   });
 
-  if (error) {
-    return { error: `Davet gönderilemedi: ${error.message}` };
+  if (error || !data.user) {
+    const already = error?.message?.toLowerCase().includes("already");
+    return {
+      error: already
+        ? "Bu e-posta zaten kayıtlı."
+        : "Kullanıcı oluşturulamadı.",
+    };
+  }
+
+  // handle_new_user trigger'ı full_name'i metadata'dan alır; iş rolünü burada set ederiz.
+  if (roleId) {
+    await adminClient
+      .from("profiles")
+      .update({ role_id: roleId })
+      .eq("id", data.user.id);
   }
 
   revalidatePath("/admin/users");
-  return { success: `${email} adresine davet gönderildi.` };
+  return { createdEmail: email, password };
+}
+
+// Şifre sıfırlama (e-postasız): admin yeni geçici şifre üretir, kişiye iletir.
+export async function resetUserPassword(
+  userId: string
+): Promise<{ error?: string; password?: string }> {
+  await requireAdmin();
+
+  const password = generateTempPassword();
+  const { error } = await createAdminClient().auth.admin.updateUserById(userId, {
+    password,
+  });
+
+  if (error) {
+    return { error: "Şifre sıfırlanamadı." };
+  }
+  return { password };
 }
 
 export async function updateUserRole(userId: string, roleId: string | null) {

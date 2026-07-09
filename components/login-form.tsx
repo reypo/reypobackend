@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
 import { login, type LoginState } from "@/lib/actions/auth";
 
@@ -66,17 +65,9 @@ export function LoginForm() {
           {pending ? "Giriş yapılıyor…" : "Giriş Yap"}
         </button>
 
-        <div className="space-y-1 text-center">
-          <Link
-            href="/forgot-password"
-            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-          >
-            Şifremi unuttum
-          </Link>
-          <p className="text-xs text-muted-foreground">
-            Hesabınız yok mu? Yöneticinizden davet e-postası bekleyin.
-          </p>
-        </div>
+        <p className="text-center text-xs text-muted-foreground">
+          Şifrenizi unuttuysanız veya hesabınız yoksa yöneticinize başvurun.
+        </p>
       </form>
     </main>
   );

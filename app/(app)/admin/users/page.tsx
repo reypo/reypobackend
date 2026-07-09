@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { InviteForm } from "@/components/admin/invite-form";
+import { CreateUserForm } from "@/components/admin/create-user-form";
 import { UserRoleRow, type UserRow } from "@/components/admin/user-role-row";
 
 export default async function UsersPage() {
@@ -37,7 +37,7 @@ export default async function UsersPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-lg font-semibold">Kullanıcılar</h1>
-      <InviteForm />
+      <CreateUserForm roles={roles ?? []} />
       <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
         <table className="w-full text-sm">
           <thead className="border-b border-border text-left text-muted-foreground">
@@ -45,7 +45,7 @@ export default async function UsersPage() {
               <th className="px-4 py-2 font-medium">Kullanıcı</th>
               <th className="px-4 py-2 font-medium">İş Rolü</th>
               <th className="px-4 py-2 font-medium">Yetki</th>
-              <th className="px-4 py-2 font-medium"></th>
+              <th className="px-4 py-2 font-medium">İşlemler</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
