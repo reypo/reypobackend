@@ -13,7 +13,7 @@ export default async function RolesPage() {
     <div className="space-y-6">
       <h1 className="text-lg font-semibold">İş Rolleri</h1>
       <RoleForm />
-      <ul className="divide-y divide-border rounded-lg border border-border">
+      <ul className="divide-y divide-border rounded-xl border border-border bg-card shadow-xs">
         {(roles ?? []).map((role) => (
           <li
             key={role.id}

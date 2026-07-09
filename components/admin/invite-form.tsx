@@ -12,7 +12,7 @@ export function InviteForm() {
   return (
     <form
       action={formAction}
-      className="flex flex-wrap items-end gap-3 rounded-lg border border-border p-4"
+      className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4 shadow-xs"
     >
       <div className="space-y-1">
         <label htmlFor="email" className="text-sm font-medium">

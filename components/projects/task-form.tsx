@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { createTask, type TaskState } from "@/lib/actions/tasks";
 
 type Assignee = { id: string; label: string; roleId: string | null };
@@ -9,16 +9,24 @@ export function TaskForm({
   projectId,
   roles,
   assignees,
+  onSuccess,
 }: {
   projectId: string;
   roles: { id: string; name: string }[];
   assignees: Assignee[];
+  onSuccess?: () => void;
 }) {
   const [state, formAction, pending] = useActionState<TaskState, FormData>(
     createTask,
     undefined
   );
   const [roleFilter, setRoleFilter] = useState("");
+
+  useEffect(() => {
+    if (state?.success) {
+      onSuccess?.();
+    }
+  }, [state, onSuccess]);
 
   const filteredAssignees = useMemo(
     () =>
@@ -29,7 +37,7 @@ export function TaskForm({
   return (
     <form
       action={formAction}
-      className="space-y-3 rounded-lg border border-border p-4"
+      className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-xs"
     >
       <input type="hidden" name="project_id" value={projectId} />
 

@@ -26,6 +26,8 @@ export async function createProject(
     return { error: "Proje oluşturulamadı." };
   }
 
-  revalidatePath("/projects");
+  // Sidebar'daki proje listesi layout seviyesinde çekiliyor; sadece /projects
+  // revalidate edilirse diğer sayfalarda sidebar bayat kalır.
+  revalidatePath("/", "layout");
   return undefined;
 }

@@ -7,12 +7,19 @@ export default async function UsersPage() {
   const supabase = await createClient();
   const adminClient = createAdminClient();
 
-  const [{ data: authUsers }, { data: profiles }, { data: roles }] =
-    await Promise.all([
-      adminClient.auth.admin.listUsers(),
-      supabase.from("profiles").select("id, full_name, system_role, role_id"),
-      supabase.from("roles").select("id, name").order("created_at"),
-    ]);
+  const [
+    {
+      data: { user: currentUser },
+    },
+    { data: authUsers },
+    { data: profiles },
+    { data: roles },
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    adminClient.auth.admin.listUsers(),
+    supabase.from("profiles").select("id, full_name, system_role, role_id"),
+    supabase.from("roles").select("id, name").order("created_at"),
+  ]);
 
   const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
 
@@ -31,25 +38,28 @@ export default async function UsersPage() {
     <div className="space-y-6">
       <h1 className="text-lg font-semibold">Kullanıcılar</h1>
       <InviteForm />
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
         <table className="w-full text-sm">
           <thead className="border-b border-border text-left text-muted-foreground">
             <tr>
               <th className="px-4 py-2 font-medium">Kullanıcı</th>
               <th className="px-4 py-2 font-medium">İş Rolü</th>
               <th className="px-4 py-2 font-medium">Yetki</th>
+              <th className="px-4 py-2 font-medium"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {rows.map((row) => (
-              <UserRoleRow key={row.id} user={row} roles={roles ?? []} />
+              <UserRoleRow
+                key={row.id}
+                user={row}
+                roles={roles ?? []}
+                currentUserId={currentUser?.id ?? ""}
+              />
             ))}
             {rows.length === 0 && (
               <tr>
-                <td
-                  colSpan={3}
-                  className="px-4 py-3 text-muted-foreground"
-                >
+                <td colSpan={4} className="px-4 py-3 text-muted-foreground">
                   Henüz kullanıcı yok.
                 </td>
               </tr>

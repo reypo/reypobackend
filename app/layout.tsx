@@ -15,16 +15,23 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Görev Takip",
   description: "Ofis içi görev takip uygulaması",
+  appleWebApp: {
+    capable: true,
+    title: "Görev Takip",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
-  ],
+  // Klavye açıldığında içerik alanı yeniden boyutlanır; alt sabit sekme
+  // çubuğu klavyenin arkasında kaybolmak yerine üstüne taşınır.
+  interactiveWidget: "resizes-content",
+  // Uygulama yalnızca aydınlık tema kullanır (ürün kararı, 2026-07-09).
+  colorScheme: "light",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({

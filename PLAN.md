@@ -340,7 +340,7 @@ Her faz çalışır, test edilebilir bir dilim üretir. Sırayla gidilmeli.
 - Kart bazlı görev listesi; durum ve öncelik renkli rozetlerle (iş rolü rozeti `roles.color`).
 - Tek el kullanımı: birincil aksiyonlar ekranın alt yarısında; "Tamamladım" görev detayında sabit alt buton.
 - Sistem fontu (`-apple-system` yığını) — iOS'ta doğal his + performans.
-- Koyu mod: `prefers-color-scheme` ile otomatik (Tailwind v4 `@variant dark`); ilk sürümde toggle şart değil.
+- ~~Koyu mod: `prefers-color-scheme` ile otomatik~~ **Karar değişikliği (2026-07-09):** Uygulama yalnızca aydınlık tema kullanır, koyu mod kaldırıldı. Masaüstünde navigasyon sol sidebar'dadır, mobilde alt sekme çubuğu.
 - Dil: Arayüz tamamen Türkçe.
 
 ---

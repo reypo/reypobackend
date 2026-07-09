@@ -1,8 +1,14 @@
 import "server-only";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 // Her admin Server Action'ının ilk satırı bunu çağırmalı (bkz. PLAN.md #10
 // Güvenlik Kontrol Listesi) — UI'da admin linkinin gizli olması yeterli değil.
+//
+// Oturum/rol geçersizse throw yerine redirect kullanılır: aynı tarayıcıda
+// birden fazla hesapla test ederken (çerezler sekmeler arasında paylaşıldığı
+// için) sayfa eski bir oturumla açık kalabilir — bu durumda kullanıcıya çirkin
+// bir hata ekranı yerine düzgün bir yönlendirme gösterilir.
 export async function requireAdmin() {
   const supabase = await createClient();
   const {
@@ -10,7 +16,7 @@ export async function requireAdmin() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    throw new Error("Oturum açılmamış.");
+    redirect("/login");
   }
 
   const { data: profile } = await supabase
@@ -20,7 +26,7 @@ export async function requireAdmin() {
     .single();
 
   if (profile?.system_role !== "admin") {
-    throw new Error("Bu işlem için yönetici yetkisi gerekiyor.");
+    redirect("/");
   }
 
   return { supabase, user };

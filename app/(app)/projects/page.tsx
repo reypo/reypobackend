@@ -22,11 +22,11 @@ export default async function ProjectsPage() {
           <li key={project.id}>
             <Link
               href={`/projects/${project.id}`}
-              className="block rounded-lg border border-border p-4 hover:bg-accent"
+              className="block rounded-xl border border-border bg-card p-4 shadow-xs transition-all hover:border-ring/40 hover:shadow-sm"
             >
-              <span className="font-medium">{project.name}</span>
+              <span className="break-words font-medium">{project.name}</span>
               {project.description && (
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 break-words text-sm text-muted-foreground">
                   {project.description}
                 </p>
               )}
@@ -34,7 +34,7 @@ export default async function ProjectsPage() {
           </li>
         ))}
         {(projects ?? []).length === 0 && (
-          <li className="rounded-lg border border-border p-4 text-sm text-muted-foreground">
+          <li className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
             Henüz proje yok.
           </li>
         )}

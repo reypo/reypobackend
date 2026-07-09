@@ -2,10 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "./guard";
+import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { TaskPriority } from "@/lib/supabase/types";
+import { sendPushToUser } from "@/lib/push";
+import type { TaskPriority, TaskStatus } from "@/lib/supabase/types";
 
-export type TaskState = { error?: string } | undefined;
+export type TaskState = { error?: string; success?: boolean } | undefined;
 
 export async function createTask(
   _prevState: TaskState,
@@ -56,6 +58,95 @@ export async function createTask(
       task_id: task.id,
     });
 
+  await sendPushToUser(assigneeId, {
+    title: "Yeni görev atandı",
+    body: task.title,
+    taskId: task.id,
+  });
+
   revalidatePath(`/projects/${projectId}`);
-  return undefined;
+  // Başarı bilgisi form panelinin kendini kapatması için kullanılır.
+  return { success: true };
+}
+
+// Kesinleşen karar: onay akışı yok — "Tamamladım" görevi direkt done yapar (PLAN.md #11).
+// Member sadece kendine atanan görevin status'unu değiştirebilir; bu, RLS'in ikinci
+// savunma hattı olduğu tasks_update_own_or_admin politikasıyla desteklenir.
+export async function updateTaskStatus(taskId: string, status: TaskStatus) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Oturum açılmamış.");
+  }
+
+  const { data: task } = await supabase
+    .from("tasks")
+    .select("id, project_id, title, assignee_id")
+    .eq("id", taskId)
+    .single();
+
+  if (!task) {
+    throw new Error("Görev bulunamadı.");
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("system_role")
+    .eq("id", user.id)
+    .single();
+  const isAdmin = profile?.system_role === "admin";
+
+  if (!isAdmin && task.assignee_id !== user.id) {
+    throw new Error("Bu görevi güncelleme yetkiniz yok.");
+  }
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({
+      status,
+      completed_at: status === "done" ? new Date().toISOString() : null,
+    })
+    .eq("id", taskId);
+
+  if (error) {
+    throw new Error("Görev güncellenemedi.");
+  }
+
+  if (status === "done") {
+    const adminClient = createAdminClient();
+    const { data: admins } = await adminClient
+      .from("profiles")
+      .select("id")
+      .eq("system_role", "admin");
+
+    const recipients = (admins ?? []).filter((admin) => admin.id !== user.id);
+    if (recipients.length > 0) {
+      await adminClient.from("notifications").insert(
+        recipients.map((admin) => ({
+          user_id: admin.id,
+          type: "task_completed" as const,
+          title: "Görev tamamlandı",
+          body: task.title,
+          task_id: task.id,
+        }))
+      );
+
+      await Promise.all(
+        recipients.map((admin) =>
+          sendPushToUser(admin.id, {
+            title: "Görev tamamlandı",
+            body: task.title,
+            taskId: task.id,
+          })
+        )
+      );
+    }
+  }
+
+  revalidatePath("/");
+  revalidatePath(`/tasks/${taskId}`);
+  revalidatePath(`/projects/${task.project_id}`);
 }

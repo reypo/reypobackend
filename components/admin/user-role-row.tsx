@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { updateUserRole, updateSystemRole } from "@/lib/actions/users";
+import { DeleteUserButton } from "./delete-user-button";
 import type { SystemRole } from "@/lib/supabase/types";
 
 export type UserRow = {
@@ -15,17 +16,21 @@ export type UserRow = {
 export function UserRoleRow({
   user,
   roles,
+  currentUserId,
 }: {
   user: UserRow;
   roles: { id: string; name: string }[];
+  currentUserId: string;
 }) {
   const [isPending, startTransition] = useTransition();
 
   return (
     <tr>
       <td className="px-4 py-2">
-        <div>{user.fullName || user.email}</div>
-        <div className="text-xs text-muted-foreground">{user.email}</div>
+        <div className="font-medium">{user.fullName || user.email}</div>
+        {user.fullName && (
+          <div className="text-xs text-muted-foreground">{user.email}</div>
+        )}
       </td>
       <td className="px-4 py-2">
         <select
@@ -59,6 +64,11 @@ export function UserRoleRow({
           <option value="member">Üye</option>
           <option value="admin">Yönetici</option>
         </select>
+      </td>
+      <td className="px-4 py-2">
+        {user.id !== currentUserId && (
+          <DeleteUserButton userId={user.id} email={user.email} />
+        )}
       </td>
     </tr>
   );

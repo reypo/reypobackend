@@ -17,11 +17,27 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="space-y-4">
-      <nav className="flex gap-4 border-b border-border pb-2 text-sm">
-        <Link href="/admin">Özet</Link>
-        <Link href="/admin/roles">Roller</Link>
-        <Link href="/admin/users">Kullanıcılar</Link>
+    <div className="space-y-6">
+      {/* Masaüstünde sidebar'daki Yönetim bölümü bu linkleri taşır; alt-nav sadece mobil */}
+      <nav className="flex gap-2 md:hidden">
+        <Link
+          href="/admin"
+          className="rounded-full border border-border bg-card px-3.5 py-1.5 text-sm"
+        >
+          Özet
+        </Link>
+        <Link
+          href="/admin/roles"
+          className="rounded-full border border-border bg-card px-3.5 py-1.5 text-sm"
+        >
+          Roller
+        </Link>
+        <Link
+          href="/admin/users"
+          className="rounded-full border border-border bg-card px-3.5 py-1.5 text-sm"
+        >
+          Kullanıcılar
+        </Link>
       </nav>
       {children}
     </div>

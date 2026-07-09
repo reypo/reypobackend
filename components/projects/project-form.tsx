@@ -12,7 +12,7 @@ export function ProjectForm() {
   return (
     <form
       action={formAction}
-      className="space-y-3 rounded-lg border border-border p-4"
+      className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-xs"
     >
       <div className="space-y-1">
         <label htmlFor="name" className="text-sm font-medium">
