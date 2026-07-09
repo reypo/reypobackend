@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/supabase/current-profile";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { TaskStatusActions } from "@/components/tasks/task-status-actions";
+import { TaskAdminActions } from "@/components/tasks/task-admin-actions";
 import {
   priorityBadgeClass,
   priorityLabel,
@@ -36,6 +38,10 @@ export default async function TaskDetailPage({
     notFound();
   }
 
+  const personIds = [task.assignee_id, task.created_by].filter(
+    (v): v is string => !!v
+  );
+
   const [{ data: project }, { data: people }, { data: role }] =
     await Promise.all([
       supabase
@@ -43,10 +49,7 @@ export default async function TaskDetailPage({
         .select("id, name")
         .eq("id", task.project_id)
         .single(),
-      supabase
-        .from("profiles")
-        .select("id, full_name")
-        .in("id", [task.assignee_id, task.created_by]),
+      supabase.from("profiles").select("id, full_name").in("id", personIds),
       task.role_id
         ? supabase
             .from("roles")
@@ -65,11 +68,33 @@ export default async function TaskDetailPage({
   }
 
   const assigneeName = personLabel(task.assignee_id);
-  const creatorName = personLabel(task.created_by);
+  const creatorName = task.created_by ? personLabel(task.created_by) : null;
   const overdue = isOverdue(task.due_date, task.status);
 
   const isAdmin = profile?.system_role === "admin";
   const canUpdateStatus = isAdmin || task.assignee_id === user.id;
+
+  // Düzenleme paneli için (yalnızca admin): rol listesi + atanabilir kişiler.
+  let editRoles: { id: string; name: string }[] = [];
+  let editAssignees: { id: string; label: string }[] = [];
+  if (isAdmin) {
+    const [{ data: roleRows }, { data: profileRows }, { data: authUsers }] =
+      await Promise.all([
+        supabase.from("roles").select("id, name").order("created_at"),
+        supabase.from("profiles").select("id, full_name"),
+        createAdminClient().auth.admin.listUsers(),
+      ]);
+    const emailById = new Map(
+      (authUsers?.users ?? []).map((u) => [u.id, u.email ?? ""])
+    );
+    editRoles = roleRows ?? [];
+    editAssignees = (profileRows ?? [])
+      .filter((p) => p.id !== user.id) // yönetici kendine görev atayamaz
+      .map((p) => ({
+        id: p.id,
+        label: p.full_name || emailById.get(p.id) || "Kullanıcı",
+      }));
+  }
 
   return (
     <div className="space-y-4">
@@ -149,7 +174,9 @@ export default async function TaskDetailPage({
             <dt className="text-xs text-muted-foreground">Oluşturulma</dt>
             <dd className="mt-1">
               {formatDateTime(task.created_at)}
-              <span className="text-muted-foreground"> · {creatorName}</span>
+              {creatorName && (
+                <span className="text-muted-foreground"> · {creatorName}</span>
+              )}
             </dd>
           </div>
 
@@ -167,6 +194,22 @@ export default async function TaskDetailPage({
           taskId={task.id}
           status={task.status}
           canReopen={isAdmin}
+        />
+      )}
+
+      {isAdmin && (
+        <TaskAdminActions
+          task={{
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            priority: task.priority,
+            due_date: task.due_date,
+            assignee_id: task.assignee_id,
+            role_id: task.role_id,
+          }}
+          roles={editRoles}
+          assignees={editAssignees}
         />
       )}
     </div>

@@ -31,8 +31,21 @@ export default function SetPasswordPage() {
     const supabase = createClient();
     supabase.auth
       .setSession({ access_token: accessToken, refresh_token: refreshToken })
-      .then(({ error }) => {
-        setStatus(error ? "invalid" : "ready");
+      .then(async ({ error }) => {
+        if (error) {
+          setStatus("invalid");
+          return;
+        }
+        // Şifre sıfırlama akışında kullanıcının zaten bir adı vardır; formda
+        // boş gösterip yanlışlıkla silinmesine yol açmamak için doldurulur.
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        const existingName = (user?.user_metadata?.full_name as string) ?? "";
+        if (existingName) {
+          setFullName(existingName);
+        }
+        setStatus("ready");
       });
   }, []);
 

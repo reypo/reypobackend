@@ -53,7 +53,12 @@ export function UserRoleRow({
       <td className="px-4 py-2">
         <select
           defaultValue={user.systemRole}
-          disabled={isPending}
+          disabled={isPending || user.id === currentUserId}
+          title={
+            user.id === currentUserId
+              ? "Kendi yetkinizi değiştiremezsiniz"
+              : undefined
+          }
           onChange={(e) =>
             startTransition(() =>
               updateSystemRole(user.id, e.target.value as SystemRole)

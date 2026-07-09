@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { deleteRole } from "@/lib/actions/roles";
 import { RoleForm } from "@/components/admin/role-form";
+import { DeleteRoleButton } from "@/components/admin/delete-role-button";
 
 export default async function RolesPage() {
   const supabase = await createClient();
@@ -26,14 +26,7 @@ export default async function RolesPage() {
               />
               {role.name}
             </span>
-            <form action={deleteRole.bind(null, role.id)}>
-              <button
-                type="submit"
-                className="text-sm text-destructive underline underline-offset-2"
-              >
-                Sil
-              </button>
-            </form>
+            <DeleteRoleButton id={role.id} name={role.name} />
           </li>
         ))}
         {(roles ?? []).length === 0 && (

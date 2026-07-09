@@ -40,17 +40,30 @@ export function PushSubscriptionManager() {
 
   useEffect(() => {
     if (!isSupported) return;
+    let cancelled = false;
 
     async function registerServiceWorker() {
-      const registration = await navigator.serviceWorker.register("/sw.js", {
-        scope: "/",
-        updateViaCache: "none",
-      });
-      const sub = await registration.pushManager.getSubscription();
-      setSubscription(sub);
+      try {
+        const registration = await navigator.serviceWorker.register("/sw.js", {
+          scope: "/",
+          updateViaCache: "none",
+        });
+        const sub = await registration.pushManager.getSubscription();
+        if (!cancelled) {
+          setSubscription(sub);
+        }
+      } catch {
+        // Dev'de StrictMode/Fast Refresh bileşeni hızla söküp yeniden taktığında
+        // devam eden kayıt AbortError ile iptal olur — zararsızdır; effect
+        // yeniden çalıştığında veya kullanıcı "Bildirimleri Aç"a bastığında
+        // kayıt zaten tekrar denenir. Yakalanmazsa unhandledRejection basar.
+      }
     }
 
     registerServiceWorker();
+    return () => {
+      cancelled = true;
+    };
   }, [isSupported]);
 
   async function subscribe() {

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireAdmin } from "./guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -25,6 +26,11 @@ export async function createTask(
 
   if (!projectId || !title || !assigneeId) {
     return { error: "Başlık ve atanan kişi zorunlu." };
+  }
+
+  // Ürün kararı (2026-07-09): yönetici kendine görev atayamaz.
+  if (assigneeId === user.id) {
+    return { error: "Kendinize görev atayamazsınız." };
   }
 
   const { data: task, error } = await supabase
@@ -67,6 +73,99 @@ export async function createTask(
   revalidatePath(`/projects/${projectId}`);
   // Başarı bilgisi form panelinin kendini kapatması için kullanılır.
   return { success: true };
+}
+
+export async function updateTask(
+  _prevState: TaskState,
+  formData: FormData
+): Promise<TaskState> {
+  const { supabase, user } = await requireAdmin();
+
+  const taskId = String(formData.get("task_id") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const priority = String(formData.get("priority") ?? "normal") as TaskPriority;
+  const dueDate = String(formData.get("due_date") ?? "") || null;
+  const assigneeId = String(formData.get("assignee_id") ?? "");
+  const roleId = String(formData.get("role_id") ?? "") || null;
+
+  if (!taskId || !title || !assigneeId) {
+    return { error: "Başlık ve atanan kişi zorunlu." };
+  }
+  if (assigneeId === user.id) {
+    return { error: "Kendinize görev atayamazsınız." };
+  }
+
+  const { data: existing } = await supabase
+    .from("tasks")
+    .select("id, project_id, assignee_id")
+    .eq("id", taskId)
+    .single();
+
+  if (!existing) {
+    return { error: "Görev bulunamadı." };
+  }
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({
+      title,
+      description,
+      priority,
+      due_date: dueDate,
+      assignee_id: assigneeId,
+      role_id: roleId,
+    })
+    .eq("id", taskId);
+
+  if (error) {
+    return { error: "Görev güncellenemedi." };
+  }
+
+  const assigneeChanged = existing.assignee_id !== assigneeId;
+  const notifTitle = assigneeChanged ? "Yeni görev atandı" : "Görev güncellendi";
+
+  await createAdminClient()
+    .from("notifications")
+    .insert({
+      user_id: assigneeId,
+      type: assigneeChanged ? ("task_assigned" as const) : ("task_updated" as const),
+      title: notifTitle,
+      body: title,
+      task_id: taskId,
+    });
+
+  await sendPushToUser(assigneeId, {
+    title: notifTitle,
+    body: title,
+    taskId,
+  });
+
+  revalidatePath("/");
+  revalidatePath(`/tasks/${taskId}`);
+  revalidatePath(`/projects/${existing.project_id}`);
+  return { success: true };
+}
+
+export async function deleteTask(taskId: string) {
+  const { supabase } = await requireAdmin();
+
+  const { data: task } = await supabase
+    .from("tasks")
+    .select("project_id")
+    .eq("id", taskId)
+    .single();
+
+  if (!task) {
+    redirect("/projects");
+  }
+
+  // Göreve bağlı bildirimler FK cascade ile birlikte silinir.
+  await supabase.from("tasks").delete().eq("id", taskId);
+
+  revalidatePath("/");
+  revalidatePath(`/projects/${task.project_id}`);
+  redirect(`/projects/${task.project_id}`);
 }
 
 // Kesinleşen karar: onay akışı yok — "Tamamladım" görevi direkt done yapar (PLAN.md #11).

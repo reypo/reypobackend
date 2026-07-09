@@ -74,7 +74,7 @@ export type Database = {
           name: string;
           description: string | null;
           is_archived: boolean;
-          created_by: string;
+          created_by: string | null;
           created_at: string;
         };
         Insert: {
@@ -106,7 +106,7 @@ export type Database = {
           assignee_id: string;
           role_id: string | null;
           due_date: string | null;
-          created_by: string;
+          created_by: string | null;
           completed_at: string | null;
           created_at: string;
           updated_at: string;

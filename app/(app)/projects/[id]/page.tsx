@@ -24,7 +24,7 @@ export default async function ProjectDetailPage({
     await Promise.all([
       supabase
         .from("projects")
-        .select("id, name, description")
+        .select("id, name, description, is_archived")
         .eq("id", id)
         .single(),
       // RLS burada da geçerli: member sadece kendi görevlerini görür.
@@ -69,11 +69,13 @@ export default async function ProjectDetailPage({
         nameById.set(p.id, emailById.get(p.id) ?? "");
       }
     }
-    assignees = (allProfiles ?? []).map((p) => ({
-      id: p.id,
-      label: p.full_name || emailById.get(p.id) || "Kullanıcı",
-      roleId: p.role_id,
-    }));
+    assignees = (allProfiles ?? [])
+      .filter((p) => p.id !== user?.id) // yönetici kendine görev atayamaz
+      .map((p) => ({
+        id: p.id,
+        label: p.full_name || emailById.get(p.id) || "Kullanıcı",
+        roleId: p.role_id,
+      }));
   }
 
   const taskList = tasks ?? [];
@@ -83,6 +85,7 @@ export default async function ProjectDetailPage({
       <ProjectHeader
         name={project.name}
         description={project.description}
+        isArchived={project.is_archived}
         isAdmin={isAdmin}
         projectId={project.id}
         roles={roles}

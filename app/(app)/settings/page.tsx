@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/supabase/current-profile";
 import { ProfileForm } from "@/components/profile-form";
+import { ChangePasswordForm } from "@/components/change-password-form";
 import { PushSubscriptionManager } from "@/components/push-subscription-manager";
 import { InstallPrompt } from "@/components/install-prompt";
 
@@ -18,6 +19,11 @@ export default async function SettingsPage() {
       <section className="space-y-2">
         <h2 className="text-sm font-medium">Profil</h2>
         <ProfileForm initialFullName={profile?.full_name ?? ""} />
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-sm font-medium">Güvenlik</h2>
+        <ChangePasswordForm />
       </section>
 
       <section className="space-y-2">

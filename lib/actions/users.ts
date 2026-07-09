@@ -47,7 +47,14 @@ export async function updateUserRole(userId: string, roleId: string | null) {
 }
 
 export async function updateSystemRole(userId: string, systemRole: SystemRole) {
-  const { supabase } = await requireAdmin();
+  const { supabase, user } = await requireAdmin();
+
+  // Kilitlenme önlemi: yönetici kendi yetkisini düşüremez (tek yönetici
+  // kendini üyeye çevirirse sistemde yönetici kalmaz).
+  if (userId === user.id) {
+    return;
+  }
+
   await supabase
     .from("profiles")
     .update({ system_role: systemRole })
@@ -76,7 +83,7 @@ export async function deleteUser(
 
   if (count && count > 0) {
     return {
-      error: `Bu kullanıcıya atanmış ${count} görev var. Silmeden önce görevleri başka birine atayın veya silin.`,
+      error: `Bu kullanıcıya atanmış ${count} görev var. Görev detay sayfasındaki "Düzenle" ile başka birine atayın veya "Sil" ile kaldırın, sonra tekrar deneyin.`,
     };
   }
 
