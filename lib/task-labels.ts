@@ -4,6 +4,8 @@ import type { TaskPriority, TaskStatus } from "@/lib/supabase/types";
 export const statusLabel: Record<TaskStatus, string> = {
   todo: "Bekliyor",
   in_progress: "Devam Ediyor",
+  awaiting_approval: "Onay Bekliyor",
+  revision: "Revize İstendi",
   done: "Tamamlandı",
 };
 
@@ -25,6 +27,8 @@ export const priorityOrder: Record<TaskPriority, number> = {
 export const statusBadgeClass: Record<TaskStatus, string> = {
   todo: "bg-amber-100 text-amber-800",
   in_progress: "bg-blue-100 text-blue-800",
+  awaiting_approval: "bg-violet-100 text-violet-800",
+  revision: "bg-rose-100 text-rose-800",
   done: "bg-emerald-100 text-emerald-800",
 };
 

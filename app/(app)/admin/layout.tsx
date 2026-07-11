@@ -27,6 +27,18 @@ export default async function AdminLayout({
           Özet
         </Link>
         <Link
+          href="/admin/calendar"
+          className="rounded-full border border-border bg-card px-3.5 py-1.5 text-sm"
+        >
+          Atama Takvimi
+        </Link>
+        <Link
+          href="/admin/people"
+          className="rounded-full border border-border bg-card px-3.5 py-1.5 text-sm"
+        >
+          Kişiler
+        </Link>
+        <Link
           href="/admin/roles"
           className="rounded-full border border-border bg-card px-3.5 py-1.5 text-sm"
         >

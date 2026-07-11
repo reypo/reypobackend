@@ -3,7 +3,12 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/supabase/current-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { TaskStatusActions } from "@/components/tasks/task-status-actions";
+import { TaskApprovalActions } from "@/components/tasks/task-approval-actions";
 import { TaskAdminActions } from "@/components/tasks/task-admin-actions";
+import {
+  TaskRevisionHistory,
+  type RevisionItem,
+} from "@/components/tasks/task-revision-history";
 import {
   priorityBadgeClass,
   priorityLabel,
@@ -29,7 +34,7 @@ export default async function TaskDetailPage({
   const { data: task } = await supabase
     .from("tasks")
     .select(
-      "id, title, description, status, priority, due_date, project_id, assignee_id, role_id, created_by, created_at, completed_at"
+      "id, title, description, status, priority, due_date, start_date, project_id, assignee_id, role_id, created_by, created_at, completed_at"
     )
     .eq("id", id)
     .single();
@@ -38,18 +43,13 @@ export default async function TaskDetailPage({
     notFound();
   }
 
-  const personIds = [task.assignee_id, task.created_by].filter(
-    (v): v is string => !!v
-  );
-
-  const [{ data: project }, { data: people }, { data: role }] =
+  const [{ data: project }, { data: role }, { data: revisionRows }] =
     await Promise.all([
       supabase
         .from("projects")
         .select("id, name")
         .eq("id", task.project_id)
         .single(),
-      supabase.from("profiles").select("id, full_name").in("id", personIds),
       task.role_id
         ? supabase
             .from("roles")
@@ -57,24 +57,36 @@ export default async function TaskDetailPage({
             .eq("id", task.role_id)
             .single()
         : Promise.resolve({ data: null }),
+      // Revize/onay geçmişi (RLS: assignee veya admin görür).
+      supabase
+        .from("task_revisions")
+        .select("id, kind, note, author_id, created_at")
+        .eq("task_id", id)
+        .order("created_at", { ascending: true }),
     ]);
 
-  const nameById = new Map((people ?? []).map((p) => [p.id, p.full_name]));
-  function personLabel(personId: string) {
-    const name = nameById.get(personId);
-    if (name) return name;
-    if (personId === user!.id) return user!.email ?? "—";
-    return "—";
-  }
-
-  const assigneeName = personLabel(task.assignee_id);
-  const creatorName = task.created_by ? personLabel(task.created_by) : null;
-  const overdue = isOverdue(task.due_date, task.status);
-
   const isAdmin = profile?.system_role === "admin";
-  const canUpdateStatus = isAdmin || task.assignee_id === user.id;
+  const isAssignee = task.assignee_id === user.id;
 
-  // Düzenleme paneli için (yalnızca admin): rol listesi + atanabilir kişiler.
+  // İsim çözümlemesi için gereken tüm kişi id'leri: atanan, oluşturan, revize yazarları.
+  const personIds = Array.from(
+    new Set(
+      [
+        task.assignee_id,
+        task.created_by,
+        ...(revisionRows ?? []).map((r) => r.author_id),
+      ].filter((v): v is string => !!v)
+    )
+  );
+
+  const { data: people } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .in("id", personIds);
+
+  const nameById = new Map((people ?? []).map((p) => [p.id, p.full_name]));
+
+  // Düzenleme paneli için (yalnızca admin): rol listesi + atanabilir kişiler + e-postalar.
   let editRoles: { id: string; name: string }[] = [];
   let editAssignees: { id: string; label: string }[] = [];
   if (isAdmin) {
@@ -87,6 +99,12 @@ export default async function TaskDetailPage({
     const emailById = new Map(
       (authUsers?.users ?? []).map((u) => [u.id, u.email ?? ""])
     );
+    // İsimsiz profilleri e-postaya düşür (hem geçmiş hem detay görünümü için).
+    for (const pid of personIds) {
+      if (!nameById.get(pid)) {
+        nameById.set(pid, emailById.get(pid) ?? "");
+      }
+    }
     editRoles = roleRows ?? [];
     editAssignees = (profileRows ?? [])
       .filter((p) => p.id !== user.id) // yönetici kendine görev atayamaz
@@ -95,6 +113,27 @@ export default async function TaskDetailPage({
         label: p.full_name || emailById.get(p.id) || "Kullanıcı",
       }));
   }
+
+  function personLabel(personId: string | null) {
+    if (!personId) return "—";
+    const name = nameById.get(personId);
+    if (name) return name;
+    if (personId === user!.id) return user!.email ?? "—";
+    return "—";
+  }
+
+  const assigneeName = personLabel(task.assignee_id);
+  const creatorName = task.created_by ? personLabel(task.created_by) : null;
+  const overdue = isOverdue(task.due_date, task.status);
+  const canUpdateStatus = isAdmin || isAssignee;
+
+  const revisions: RevisionItem[] = (revisionRows ?? []).map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    note: r.note,
+    created_at: r.created_at,
+    authorName: personLabel(r.author_id),
+  }));
 
   return (
     <div className="space-y-4">
@@ -159,6 +198,13 @@ export default async function TaskDetailPage({
           )}
 
           <div>
+            <dt className="text-xs text-muted-foreground">Başlangıç</dt>
+            <dd className="mt-1">
+              {task.start_date ? formatDate(task.start_date) : "Belirtilmemiş"}
+            </dd>
+          </div>
+
+          <div>
             <dt className="text-xs text-muted-foreground">Son Tarih</dt>
             <dd className="mt-1 flex items-center gap-2">
               {task.due_date ? formatDate(task.due_date) : "Belirtilmemiş"}
@@ -193,9 +239,16 @@ export default async function TaskDetailPage({
         <TaskStatusActions
           taskId={task.id}
           status={task.status}
-          canReopen={isAdmin}
+          isAdmin={isAdmin}
+          isAssignee={isAssignee}
         />
       )}
+
+      {isAdmin && task.status === "awaiting_approval" && (
+        <TaskApprovalActions taskId={task.id} />
+      )}
+
+      <TaskRevisionHistory revisions={revisions} />
 
       {isAdmin && (
         <TaskAdminActions
@@ -205,6 +258,7 @@ export default async function TaskDetailPage({
             description: task.description,
             priority: task.priority,
             due_date: task.due_date,
+            start_date: task.start_date,
             assignee_id: task.assignee_id,
             role_id: task.role_id,
           }}

@@ -5,8 +5,10 @@ import { priorityOrder } from "@/lib/task-labels";
 import type { TaskStatus } from "@/lib/supabase/types";
 
 const groups: { status: TaskStatus; label: string }[] = [
+  { status: "revision", label: "Revize İstendi" },
   { status: "todo", label: "Bekleyen" },
   { status: "in_progress", label: "Devam Eden" },
+  { status: "awaiting_approval", label: "Onay Bekliyor" },
   { status: "done", label: "Tamamlanan" },
 ];
 
@@ -19,7 +21,7 @@ export default async function TasksPage() {
 
   const { data: tasks } = await supabase
     .from("tasks")
-    .select("id, title, status, priority, due_date, project_id")
+    .select("id, title, status, priority, due_date, start_date, project_id")
     .eq("assignee_id", user.id);
 
   const { data: projects } = await supabase.from("projects").select("id, name");

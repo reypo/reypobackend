@@ -6,6 +6,8 @@ import { ProjectTaskRow } from "@/components/projects/project-task-row";
 import type { TaskStatus } from "@/lib/supabase/types";
 
 const statusGroups: { status: TaskStatus; label: string }[] = [
+  { status: "awaiting_approval", label: "Onay Bekliyor" },
+  { status: "revision", label: "Revize İstendi" },
   { status: "in_progress", label: "Devam Eden" },
   { status: "todo", label: "Bekleyen" },
   { status: "done", label: "Tamamlanan" },

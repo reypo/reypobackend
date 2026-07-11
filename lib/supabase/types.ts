@@ -6,12 +6,21 @@
 // GenericTable kısıtı bu alanı zorunlu tutuyor, yoksa sorgu tipleri `never`'a düşer.
 
 export type SystemRole = "admin" | "member";
-export type TaskStatus = "todo" | "in_progress" | "done";
+export type TaskStatus =
+  | "todo"
+  | "in_progress"
+  | "awaiting_approval"
+  | "revision"
+  | "done";
 export type TaskPriority = "low" | "normal" | "high" | "urgent";
+export type RevisionKind = "submitted" | "revision_requested" | "approved";
 export type NotificationType =
   | "task_assigned"
   | "task_completed"
-  | "task_updated";
+  | "task_updated"
+  | "task_submitted"
+  | "task_approved"
+  | "task_revision_requested";
 
 export type Database = {
   public: {
@@ -106,6 +115,7 @@ export type Database = {
           assignee_id: string;
           role_id: string | null;
           due_date: string | null;
+          start_date: string | null;
           created_by: string | null;
           completed_at: string | null;
           created_at: string;
@@ -121,6 +131,7 @@ export type Database = {
           assignee_id: string;
           role_id?: string | null;
           due_date?: string | null;
+          start_date?: string | null;
           created_by: string;
           completed_at?: string | null;
           created_at?: string;
@@ -181,6 +192,39 @@ export type Database = {
             foreignKeyName: "notifications_task_id_fkey";
             columns: ["task_id"];
             referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      task_revisions: {
+        Row: {
+          id: string;
+          task_id: string;
+          author_id: string | null;
+          kind: RevisionKind;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          author_id?: string | null;
+          kind: RevisionKind;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["task_revisions"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "task_revisions_task_id_fkey";
+            columns: ["task_id"];
+            referencedRelation: "tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_revisions_author_id_fkey";
+            columns: ["author_id"];
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];

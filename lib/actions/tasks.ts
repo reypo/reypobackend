@@ -6,7 +6,7 @@ import { requireAdmin } from "./guard";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUser } from "@/lib/push";
-import type { TaskPriority, TaskStatus } from "@/lib/supabase/types";
+import type { TaskPriority } from "@/lib/supabase/types";
 
 export type TaskState = { error?: string; success?: boolean } | undefined;
 
@@ -21,6 +21,7 @@ export async function createTask(
   const description = String(formData.get("description") ?? "").trim() || null;
   const priority = String(formData.get("priority") ?? "normal") as TaskPriority;
   const dueDate = String(formData.get("due_date") ?? "") || null;
+  const startDate = String(formData.get("start_date") ?? "") || null;
   const assigneeId = String(formData.get("assignee_id") ?? "");
   const roleId = String(formData.get("role_id") ?? "") || null;
 
@@ -41,6 +42,7 @@ export async function createTask(
       description,
       priority,
       due_date: dueDate,
+      start_date: startDate,
       assignee_id: assigneeId,
       role_id: roleId,
       created_by: user.id,
@@ -71,6 +73,7 @@ export async function createTask(
   });
 
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/admin/calendar");
   // Başarı bilgisi form panelinin kendini kapatması için kullanılır.
   return { success: true };
 }
@@ -86,6 +89,7 @@ export async function updateTask(
   const description = String(formData.get("description") ?? "").trim() || null;
   const priority = String(formData.get("priority") ?? "normal") as TaskPriority;
   const dueDate = String(formData.get("due_date") ?? "") || null;
+  const startDate = String(formData.get("start_date") ?? "") || null;
   const assigneeId = String(formData.get("assignee_id") ?? "");
   const roleId = String(formData.get("role_id") ?? "") || null;
 
@@ -113,6 +117,7 @@ export async function updateTask(
       description,
       priority,
       due_date: dueDate,
+      start_date: startDate,
       assignee_id: assigneeId,
       role_id: roleId,
     })
@@ -144,6 +149,7 @@ export async function updateTask(
   revalidatePath("/");
   revalidatePath(`/tasks/${taskId}`);
   revalidatePath(`/projects/${existing.project_id}`);
+  revalidatePath("/admin/calendar");
   return { success: true };
 }
 
@@ -165,13 +171,19 @@ export async function deleteTask(taskId: string) {
 
   revalidatePath("/");
   revalidatePath(`/projects/${task.project_id}`);
+  revalidatePath("/admin/calendar");
   redirect(`/projects/${task.project_id}`);
 }
 
-// Kesinleşen karar: onay akışı yok — "Tamamladım" görevi direkt done yapar (PLAN.md #11).
-// Member sadece kendine atanan görevin status'unu değiştirebilir; bu, RLS'in ikinci
-// savunma hattı olduğu tasks_update_own_or_admin politikasıyla desteklenir.
-export async function updateTaskStatus(taskId: string, status: TaskStatus) {
+// =========================================================
+// Onay + revize akışı (PLAN.md #11.1 güncellendi: onay akışı VAR).
+// todo/in_progress/revision --(çalışan: submit)--> awaiting_approval
+// awaiting_approval --(admin: approve)--> done
+// awaiting_approval --(admin: requestRevision + not)--> revision
+// =========================================================
+
+// Ortak: oturumdaki kullanıcı + görev + admin bilgisini yükler.
+async function loadTaskActor(taskId: string) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -183,7 +195,7 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus) {
 
   const { data: task } = await supabase
     .from("tasks")
-    .select("id, project_id, title, assignee_id")
+    .select("id, project_id, title, status, assignee_id")
     .eq("id", taskId)
     .single();
 
@@ -196,56 +208,232 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus) {
     .select("system_role")
     .eq("id", user.id)
     .single();
-  const isAdmin = profile?.system_role === "admin";
+
+  return { supabase, user, task, isAdmin: profile?.system_role === "admin" };
+}
+
+function revalidateTask(taskId: string, projectId: string) {
+  revalidatePath("/");
+  revalidatePath(`/tasks/${taskId}`);
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/admin"); // Yönetim hub'ındaki "Onay Bekleyenler" listesi güncel kalsın.
+  revalidatePath("/admin/calendar");
+  revalidatePath("/admin/people");
+  revalidatePath("/calendar");
+}
+
+// Çalışan (veya admin): görevi çalışmaya başla. todo/revision -> in_progress.
+export async function startTask(taskId: string) {
+  const { supabase, user, task, isAdmin } = await loadTaskActor(taskId);
 
   if (!isAdmin && task.assignee_id !== user.id) {
     throw new Error("Bu görevi güncelleme yetkiniz yok.");
   }
+  if (task.status !== "todo" && task.status !== "revision") {
+    throw new Error("Görev şu anda başlatılabilir durumda değil.");
+  }
 
   const { error } = await supabase
     .from("tasks")
-    .update({
-      status,
-      completed_at: status === "done" ? new Date().toISOString() : null,
-    })
+    .update({ status: "in_progress" })
     .eq("id", taskId);
-
   if (error) {
     throw new Error("Görev güncellenemedi.");
   }
 
-  if (status === "done") {
-    const adminClient = createAdminClient();
-    const { data: admins } = await adminClient
-      .from("profiles")
-      .select("id")
-      .eq("system_role", "admin");
+  revalidateTask(taskId, task.project_id);
+}
 
-    const recipients = (admins ?? []).filter((admin) => admin.id !== user.id);
-    if (recipients.length > 0) {
-      await adminClient.from("notifications").insert(
-        recipients.map((admin) => ({
-          user_id: admin.id,
-          type: "task_completed" as const,
-          title: "Görev tamamlandı",
-          body: task.title,
-          task_id: task.id,
-        }))
-      );
+// Çalışan (veya admin): "Tamamladım" — görevi yönetici onayına gönderir.
+// completed_at burada set EDİLMEZ; yalnızca onayda set edilir.
+export async function submitForApproval(taskId: string) {
+  const { supabase, user, task, isAdmin } = await loadTaskActor(taskId);
 
-      await Promise.all(
-        recipients.map((admin) =>
-          sendPushToUser(admin.id, {
-            title: "Görev tamamlandı",
-            body: task.title,
-            taskId: task.id,
-          })
-        )
-      );
-    }
+  if (!isAdmin && task.assignee_id !== user.id) {
+    throw new Error("Bu görevi güncelleme yetkiniz yok.");
+  }
+  if (
+    task.status !== "todo" &&
+    task.status !== "in_progress" &&
+    task.status !== "revision"
+  ) {
+    throw new Error("Görev şu anda onaya gönderilemez.");
   }
 
-  revalidatePath("/");
-  revalidatePath(`/tasks/${taskId}`);
-  revalidatePath(`/projects/${task.project_id}`);
+  const { error } = await supabase
+    .from("tasks")
+    .update({ status: "awaiting_approval" })
+    .eq("id", taskId);
+  if (error) {
+    throw new Error("Görev güncellenemedi.");
+  }
+
+  // Geçmişe "onaya gönderildi" kaydı (append-only).
+  await supabase
+    .from("task_revisions")
+    .insert({ task_id: taskId, author_id: user.id, kind: "submitted" });
+
+  // Onay bekleyen görevi tüm yöneticilere bildir (gönderenin kendisi hariç).
+  const adminClient = createAdminClient();
+  const { data: admins } = await adminClient
+    .from("profiles")
+    .select("id")
+    .eq("system_role", "admin");
+  const recipients = (admins ?? []).filter((a) => a.id !== user.id);
+
+  if (recipients.length > 0) {
+    await adminClient.from("notifications").insert(
+      recipients.map((a) => ({
+        user_id: a.id,
+        type: "task_submitted" as const,
+        title: "Görev onayınızı bekliyor",
+        body: task.title,
+        task_id: task.id,
+      }))
+    );
+    await Promise.all(
+      recipients.map((a) =>
+        sendPushToUser(a.id, {
+          title: "Görev onayınızı bekliyor",
+          body: task.title,
+          taskId: task.id,
+        })
+      )
+    );
+  }
+
+  revalidateTask(taskId, task.project_id);
+}
+
+// Yönetici: onaya düşen görevi onaylar -> done. İsteğe bağlı not.
+export async function approveTask(taskId: string, note?: string) {
+  const { supabase, user, task, isAdmin } = await loadTaskActor(taskId);
+
+  if (!isAdmin) {
+    throw new Error("Bu işlem için yönetici yetkisi gerekir.");
+  }
+  if (task.status !== "awaiting_approval") {
+    throw new Error("Yalnızca onay bekleyen görevler onaylanabilir.");
+  }
+
+  const trimmed = note?.trim() || null;
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({ status: "done", completed_at: new Date().toISOString() })
+    .eq("id", taskId);
+  if (error) {
+    throw new Error("Görev güncellenemedi.");
+  }
+
+  await supabase.from("task_revisions").insert({
+    task_id: taskId,
+    author_id: user.id,
+    kind: "approved",
+    note: trimmed,
+  });
+
+  // Atanan kişiyi bilgilendir (yöneticinin kendisi atanan değilse).
+  if (task.assignee_id !== user.id) {
+    await createAdminClient().from("notifications").insert({
+      user_id: task.assignee_id,
+      type: "task_approved",
+      title: "Göreviniz onaylandı",
+      body: task.title,
+      task_id: task.id,
+    });
+    await sendPushToUser(task.assignee_id, {
+      title: "Göreviniz onaylandı",
+      body: task.title,
+      taskId: task.id,
+    });
+  }
+
+  revalidateTask(taskId, task.project_id);
+}
+
+// Yönetici: onaya düşen görevi revize notuyla geri gönderir -> revision. Not zorunlu.
+export async function requestRevision(taskId: string, note: string) {
+  const { supabase, user, task, isAdmin } = await loadTaskActor(taskId);
+
+  if (!isAdmin) {
+    throw new Error("Bu işlem için yönetici yetkisi gerekir.");
+  }
+  if (task.status !== "awaiting_approval") {
+    throw new Error("Yalnızca onay bekleyen görev için revize istenebilir.");
+  }
+
+  const trimmed = note?.trim();
+  if (!trimmed) {
+    throw new Error("Revize notu zorunlu.");
+  }
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({ status: "revision" })
+    .eq("id", taskId);
+  if (error) {
+    throw new Error("Görev güncellenemedi.");
+  }
+
+  await supabase.from("task_revisions").insert({
+    task_id: taskId,
+    author_id: user.id,
+    kind: "revision_requested",
+    note: trimmed,
+  });
+
+  if (task.assignee_id !== user.id) {
+    await createAdminClient().from("notifications").insert({
+      user_id: task.assignee_id,
+      type: "task_revision_requested",
+      title: "Görev için revize istendi",
+      body: trimmed,
+      task_id: task.id,
+    });
+    await sendPushToUser(task.assignee_id, {
+      title: "Görev için revize istendi",
+      body: trimmed,
+      taskId: task.id,
+    });
+  }
+
+  revalidateTask(taskId, task.project_id);
+}
+
+// Yönetici: tamamlanmış görevi yeniden açar -> todo. completed_at sıfırlanır.
+export async function reopenTask(taskId: string) {
+  const { supabase, user, task, isAdmin } = await loadTaskActor(taskId);
+
+  if (!isAdmin) {
+    throw new Error("Bu işlem için yönetici yetkisi gerekir.");
+  }
+  if (task.status !== "done") {
+    throw new Error("Yalnızca tamamlanmış görev yeniden açılabilir.");
+  }
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({ status: "todo", completed_at: null })
+    .eq("id", taskId);
+  if (error) {
+    throw new Error("Görev güncellenemedi.");
+  }
+
+  if (task.assignee_id !== user.id) {
+    await createAdminClient().from("notifications").insert({
+      user_id: task.assignee_id,
+      type: "task_updated",
+      title: "Görev yeniden açıldı",
+      body: task.title,
+      task_id: task.id,
+    });
+    await sendPushToUser(task.assignee_id, {
+      title: "Görev yeniden açıldı",
+      body: task.title,
+      taskId: task.id,
+    });
+  }
+
+  revalidateTask(taskId, task.project_id);
 }

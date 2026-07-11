@@ -18,6 +18,7 @@ export function TaskAdminActions({
     description: string | null;
     priority: TaskPriority;
     due_date: string | null;
+    start_date: string | null;
     assignee_id: string;
     role_id: string | null;
   };
@@ -104,6 +105,22 @@ export function TaskAdminActions({
               rows={3}
               defaultValue={task.description ?? ""}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-base outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label htmlFor="edit_start_date" className="text-sm font-medium">
+              Başlangıç günü{" "}
+              <span className="font-normal text-muted-foreground">
+                (görev bu güne planlanır)
+              </span>
+            </label>
+            <input
+              id="edit_start_date"
+              name="start_date"
+              type="date"
+              defaultValue={task.start_date ?? ""}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-base"
             />
           </div>
 

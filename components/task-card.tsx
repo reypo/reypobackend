@@ -18,6 +18,7 @@ export function TaskCard({
     status: TaskStatus;
     priority: TaskPriority;
     due_date: string | null;
+    start_date?: string | null;
   };
   // Bağlama göre çağıran belirler: proje detayında atanan kişi adı,
   // "Görevlerim"de proje adı gösterilir.
@@ -48,6 +49,9 @@ export function TaskCard({
             <span className="rounded-full bg-red-100 px-2 py-0.5 font-medium text-red-700">
               Gecikti
             </span>
+          )}
+          {task.start_date && (
+            <span>Başlangıç: {formatDate(task.start_date)}</span>
           )}
           {task.due_date && (
             <span>Son tarih: {formatDate(task.due_date)}</span>

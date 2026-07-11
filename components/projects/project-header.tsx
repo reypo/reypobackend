@@ -9,7 +9,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { TaskForm } from "./task-form";
+import { TaskCreateForm } from "@/components/task-create-form";
 import {
   updateProject,
   setProjectArchived,
@@ -199,12 +199,14 @@ export function ProjectHeader({
       )}
 
       {isAdmin && !isArchived && taskFormOpen && (
-        <TaskForm
-          projectId={projectId}
-          roles={roles}
-          assignees={assignees}
-          onSuccess={() => setTaskFormOpen(false)}
-        />
+        <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
+          <TaskCreateForm
+            fixedProjectId={projectId}
+            roles={roles}
+            assignees={assignees}
+            onSuccess={() => setTaskFormOpen(false)}
+          />
+        </div>
       )}
     </div>
   );

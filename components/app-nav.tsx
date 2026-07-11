@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bell,
+  CalendarDays,
+  ContactRound,
   FolderKanban,
   Hash,
   LayoutDashboard,
@@ -12,8 +14,6 @@ import {
   Plus,
   Settings,
   ShieldCheck,
-  Tags,
-  Users,
   type LucideIcon,
 } from "lucide-react";
 import { useUnreadNotifications } from "@/lib/hooks/use-unread-notifications";
@@ -46,14 +46,17 @@ export function AppNav({
 
   const mainItems: NavItem[] = [
     { href: "/", label: "Görevlerim", icon: ListChecks },
+    { href: "/calendar", label: "Takvim", icon: CalendarDays },
     { href: "/notifications", label: "Bildirimler", icon: Bell, badge: unreadCount },
     { href: "/settings", label: "Ayarlar", icon: Settings },
   ];
 
+  // Sidebar'da yalnızca en sık kullanılan yönetim girişleri; Roller/Kullanıcılar
+  // gibi ayarlar Yönetim panelindeki (/admin) kısayollardan açılır.
   const adminItems: NavItem[] = [
-    { href: "/admin", label: "Özet", icon: LayoutDashboard },
-    { href: "/admin/roles", label: "Roller", icon: Tags },
-    { href: "/admin/users", label: "Kullanıcılar", icon: Users },
+    { href: "/admin", label: "Yönetim Paneli", icon: LayoutDashboard },
+    { href: "/admin/calendar", label: "Atama Takvimi", icon: CalendarDays },
+    { href: "/admin/people", label: "Kişi Görevleri", icon: ContactRound },
   ];
 
   function isActive(href: string) {
@@ -86,9 +89,20 @@ export function AppNav({
   }
 
   // Mobil alt bar: sidebar bölümleri yerine kompakt sekmeler
+  // Mobil alt bar en fazla 5 sekme. Admin'de "Projeler" yerini "Yönetim" alır
+  // (projelere Yönetim panelindeki kısayoldan ulaşılır); üye "Projeler"i görür.
   const mobileItems: NavItem[] = [
     { href: "/", label: "Görevlerim", icon: ListChecks },
-    { href: "/projects", label: "Projeler", icon: FolderKanban },
+    { href: "/calendar", label: "Takvim", icon: CalendarDays },
+    ...(isAdmin
+      ? []
+      : [
+          {
+            href: "/projects",
+            label: "Projeler",
+            icon: FolderKanban,
+          } satisfies NavItem,
+        ]),
     { href: "/notifications", label: "Bildirimler", icon: Bell, badge: unreadCount },
     { href: "/settings", label: "Ayarlar", icon: Settings },
     ...(isAdmin

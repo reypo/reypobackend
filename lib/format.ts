@@ -16,7 +16,9 @@ export function formatDateTime(timestamp: string) {
 }
 
 export function isOverdue(dueDate: string | null, status: TaskStatus) {
-  if (!dueDate || status === "done") {
+  // done: bitmiş. awaiting_approval: çalışan işini teslim etmiş, top yöneticide —
+  // ikisinde de "Gecikti" göstermek yanıltıcı olur.
+  if (!dueDate || status === "done" || status === "awaiting_approval") {
     return false;
   }
   const today = new Date();
