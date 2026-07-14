@@ -128,6 +128,7 @@ export default async function AdminOverviewPage() {
     value: number;
     icon: LucideIcon;
     chip: string;
+    href: string;
     detail?: string;
   }[] = [
     {
@@ -135,18 +136,21 @@ export default async function AdminOverviewPage() {
       value: userCount ?? 0,
       icon: Users,
       chip: "bg-indigo-100 text-indigo-700",
+      href: "/admin/users",
     },
     {
       label: "Proje",
       value: projectCount ?? 0,
       icon: FolderKanban,
       chip: "bg-sky-100 text-sky-700",
+      href: "/projects",
     },
     {
       label: "Görev",
       value: taskCount ?? 0,
       icon: ListChecks,
       chip: "bg-emerald-100 text-emerald-700",
+      href: "/admin/people",
       detail: `${doneCount ?? 0} tamamlandı`,
     },
   ];
@@ -185,9 +189,10 @@ export default async function AdminOverviewPage() {
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div
+            <Link
               key={stat.label}
-              className="rounded-xl border border-border bg-card p-4 shadow-xs"
+              href={stat.href}
+              className="block rounded-xl border border-border bg-card p-4 shadow-xs transition-all hover:border-ring/40 hover:shadow-sm"
             >
               <span
                 className={`grid h-8 w-8 place-items-center rounded-lg ${stat.chip}`}
@@ -203,7 +208,7 @@ export default async function AdminOverviewPage() {
                   {stat.detail}
                 </p>
               )}
-            </div>
+            </Link>
           );
         })}
       </section>
