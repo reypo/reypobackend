@@ -46,9 +46,13 @@ export function AppNav({
   const pathname = usePathname();
   const unreadCount = useUnreadNotifications(userId, initialUnreadIds);
 
+  // Takvim çalışan görünümüdür (kendine atanan görevler); yönetici Atama
+  // Takvimi'ni kullandığı için menüsünde gösterilmez.
   const mainItems: NavItem[] = [
     { href: "/", label: "Görevlerim", icon: ListChecks },
-    { href: "/calendar", label: "Takvim", icon: CalendarDays },
+    ...(isAdmin
+      ? []
+      : [{ href: "/calendar", label: "Takvim", icon: CalendarDays } satisfies NavItem]),
     { href: "/notifications", label: "Bildirimler", icon: Bell, badge: unreadCount },
     { href: "/settings", label: "Ayarlar", icon: Settings },
   ];
@@ -82,7 +86,7 @@ export function AppNav({
         <Icon className="h-4 w-4 shrink-0" />
         <span className="truncate">{item.label}</span>
         {!!item.badge && (
-          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-medium text-destructive-foreground">
+          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-medium text-primary-foreground">
             {item.badge > 9 ? "9+" : item.badge}
           </span>
         )}
@@ -95,10 +99,14 @@ export function AppNav({
   // (projelere Yönetim panelindeki kısayoldan ulaşılır); üye "Projeler"i görür.
   const mobileItems: NavItem[] = [
     { href: "/", label: "Görevlerim", icon: ListChecks },
-    { href: "/calendar", label: "Takvim", icon: CalendarDays },
     ...(isAdmin
       ? []
       : [
+          {
+            href: "/calendar",
+            label: "Takvim",
+            icon: CalendarDays,
+          } satisfies NavItem,
           {
             href: "/projects",
             label: "Projeler",
@@ -219,7 +227,7 @@ export function AppNav({
               <Icon className="h-5 w-5" />
               {item.label}
               {!!item.badge && (
-                <span className="absolute right-1/2 top-1 flex h-3.5 min-w-3.5 translate-x-3 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-medium text-destructive-foreground">
+                <span className="absolute right-1/2 top-1 flex h-3.5 min-w-3.5 translate-x-3 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-medium text-primary-foreground">
                   {item.badge > 9 ? "9+" : item.badge}
                 </span>
               )}

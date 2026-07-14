@@ -241,8 +241,8 @@ function revalidateTask(taskId: string, projectId: string) {
   revalidatePath(`/tasks/${taskId}`);
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/admin"); // Yönetim hub'ındaki "Onay Bekleyenler" listesi güncel kalsın.
-  revalidatePath("/admin/calendar");
   revalidatePath("/admin/people");
+  revalidatePath("/admin/calendar");
   revalidatePath("/calendar");
 }
 

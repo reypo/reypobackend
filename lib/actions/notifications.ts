@@ -9,7 +9,9 @@ import { createClient } from "@/lib/supabase/server";
 export async function markNotificationRead(id: string) {
   const supabase = await createClient();
   await supabase.from("notifications").update({ is_read: true }).eq("id", id);
-  revalidatePath("/notifications");
+  // "layout": rozet sayacı AppNav'da (tüm sayfaların layout'u) yaşadığı için
+  // yalnızca /notifications değil tüm ağaç tazelenmeli.
+  revalidatePath("/", "layout");
 }
 
 export async function markAllNotificationsRead() {
@@ -28,5 +30,5 @@ export async function markAllNotificationsRead() {
     .eq("user_id", user.id)
     .eq("is_read", false);
 
-  revalidatePath("/notifications");
+  revalidatePath("/", "layout");
 }

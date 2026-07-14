@@ -33,7 +33,7 @@ function formatLongDate(dateStr: string) {
 }
 
 // Aylık takvim ızgarası (salt-okunur). Admin, seçili gün için bir form eklemek
-// üzere renderFooter geçirir; kullanıcı takviminde renderFooter yoktur.
+// üzere renderFooter geçirir (Atama Takvimi'nde güne görev atama paneli).
 export function TaskCalendar({
   title,
   subtitle,
