@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { useUnreadNotifications } from "@/lib/hooks/use-unread-notifications";
 import { logout } from "@/lib/actions/auth";
+import { colorFor } from "@/lib/palette";
+import { initials } from "@/lib/format";
 
 type NavItem = {
   href: string;
@@ -117,7 +119,7 @@ export function AppNav({
       {/* Masaüstü: sabit sol sidebar */}
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col border-r border-sidebar-border bg-sidebar md:flex">
         <div className="flex items-center gap-2.5 px-5 pb-5 pt-6">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-bold text-white">
             G
           </span>
           <span className="truncate text-sm font-semibold">Görev Takip</span>
@@ -149,7 +151,7 @@ export function AppNav({
               href={`/projects/${project.id}`}
               className={itemClass(pathname === `/projects/${project.id}`)}
             >
-              <Hash className="h-4 w-4 shrink-0" />
+              <Hash className={`h-4 w-4 shrink-0 ${colorFor(project.id).icon}`} />
               <span className="truncate">{project.name}</span>
             </Link>
           ))}
@@ -178,10 +180,17 @@ export function AppNav({
         </nav>
 
         <div className="border-t border-sidebar-border p-3">
-          <p className="truncate px-3 pb-2 text-xs text-muted-foreground">
-            {userLabel}
-            {isAdmin ? " · Yönetici" : ""}
-          </p>
+          <div className="flex items-center gap-2 px-3 pb-2">
+            <span
+              className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-semibold ${colorFor(userId).chip}`}
+            >
+              {initials(userLabel)}
+            </span>
+            <p className="min-w-0 truncate text-xs text-muted-foreground">
+              {userLabel}
+              {isAdmin ? " · Yönetici" : ""}
+            </p>
+          </div>
           <form action={logout}>
             <button
               type="submit"
@@ -204,7 +213,7 @@ export function AppNav({
               key={item.href}
               href={item.href}
               className={`relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${
-                active ? "font-medium text-foreground" : "text-muted-foreground"
+                active ? "font-medium text-primary" : "text-muted-foreground"
               }`}
             >
               <Icon className="h-5 w-5" />
